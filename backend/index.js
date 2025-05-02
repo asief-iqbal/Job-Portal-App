@@ -19,6 +19,8 @@ app.use(cookieParser());
 const corsOptions = {
     origin: "http://localhost:5173",
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
 
@@ -30,8 +32,34 @@ app.use("/api/v1/company", companyRouter);
 app.use("/api/v1/job", jobRouter);
 app.use("/api/v1/application", applicationRouter);
 
-// Server connection
-app.listen(PORT, () => {
-    connectDB(); // Connect to MongoDB Atlas
-    console.log(`Server running at port ${PORT}`);
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(err.status || 500).json({
+        success: false,
+        message: err.message || "Internal Server Error",
+    });
 });
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: "Route not found",
+    });
+});
+
+// Server connection
+const startServer = async () => {
+    try {
+        await connectDB(); // Connect to MongoDB Atlas
+        app.listen(PORT, () => {
+            console.log(`Server running at port ${PORT}`);
+        });
+    } catch (error) {
+        console.error("Failed to start server:", error);
+        process.exit(1);
+    }
+};
+
+startServer();
