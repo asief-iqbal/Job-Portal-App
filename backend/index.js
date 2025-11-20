@@ -7,6 +7,7 @@ import userRouter from "./routes/user.route.js";
 import companyRouter from "./routes/company.route.js";
 import jobRouter from "./routes/job.route.js";
 import applicationRouter from "./routes/application.route.js";
+
 dotenv.config();
 
 const app = express();
@@ -16,8 +17,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Request logging middleware
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+    next();
+});
+
+// CORS configuration - updated to support production deployment
 const corsOptions = {
-    origin: "http://localhost:5173",
+    origin: process.env.NODE_ENV === 'production'
+        ? process.env.FRONTEND_URL || true
+        : ["http://localhost:5173", "http://localhost:5174"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -49,17 +59,23 @@ app.use((req, res) => {
     });
 });
 
-// Server connection
-const startServer = async () => {
-    try {
-        await connectDB(); // Connect to MongoDB Atlas
-        app.listen(PORT, () => {
-            console.log(`Server running at port ${PORT}`);
-        });
-    } catch (error) {
-        console.error("Failed to start server:", error);
-        process.exit(1);
-    }
-};
+// Export app for Vercel serverless function
+export default app;
 
-startServer();
+// Server connection (only runs when executed directly, not in serverless)
+if (process.env.NODE_ENV !== 'production') {
+    const startServer = async () => {
+        try {
+            await connectDB(); // Connect to MongoDB Atlas
+            app.listen(PORT, () => {
+                console.log(`Server running at port ${PORT}`);
+            });
+        } catch (error) {
+            console.error("Failed to start server:", error);
+            process.exit(1);
+        }
+    };
+
+    startServer();
+}
+
